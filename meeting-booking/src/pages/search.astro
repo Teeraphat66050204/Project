@@ -1,0 +1,177 @@
+---
+import Badge from "../components/Badge.astro";
+import Button from "../components/Button.astro";
+import Card from "../components/Card.astro";
+import CarCard from "../components/CarCard.astro";
+import Footer from "../components/Footer.astro";
+import Navbar from "../components/Navbar.astro";
+import Select from "../components/Select.astro";
+import { cars } from "../data/cars";
+import { isCarAvailableMock, isDateInPast, isDateRangeValid, parseDate } from "../lib/booking-flow";
+import BaseLayout from "../layouts/BaseLayout.astro";
+
+const params = Astro.url.searchParams;
+const location = params.get("location")?.trim() ?? "";
+const pickup = params.get("pickup") ?? "";
+const dropoff = params.get("dropoff") ?? "";
+const type = params.get("type") ?? "all";
+const brand = params.get("brand") ?? "all";
+const price = params.get("price") ?? "all";
+const sort = params.get("sort") ?? "recommended";
+
+const pickupDate = parseDate(pickup);
+const dropoffDate = parseDate(dropoff);
+
+const errors: string[] = [];
+if (!location) errors.push("Location is required.");
+if (!pickupDate || !dropoffDate) errors.push("Pick-up and drop-off date/time are required.");
+if (pickupDate && isDateInPast(pickupDate)) errors.push("Pick-up cannot be in the past.");
+if (!isDateRangeValid(pickupDate, dropoffDate)) errors.push("Drop-off must be later than pick-up.");
+
+const brands = Array.from(new Set(cars.map((car) => car.brand))).sort((a, b) => a.localeCompare(b));
+
+const filtered = errors.length
+  ? []
+  : cars
+      .filter((car) => (type === "all" ? true : car.type.toLowerCase() === type.toLowerCase()))
+      .filter((car) => (brand === "all" ? true : car.brand === brand))
+      .filter((car) => {
+        if (price === "under-2500") return car.pricePerDay < 2500;
+        if (price === "2500-3500") return car.pricePerDay >= 2500 && car.pricePerDay <= 3500;
+        if (price === "above-3500") return car.pricePerDay > 3500;
+        return true;
+      })
+      .filter((car) => (pickupDate && dropoffDate ? isCarAvailableMock(car.id, pickupDate, dropoffDate) : false));
+
+const sorted = [...filtered].sort((a, b) => {
+  if (sort === "price-asc") return a.pricePerDay - b.pricePerDay;
+  if (sort === "price-desc") return b.pricePerDay - a.pricePerDay;
+  if (sort === "rating") return b.rating - a.rating;
+  return b.rating - a.rating || a.pricePerDay - b.pricePerDay;
+});
+---
+
+<BaseLayout title="Search Results | ChaoLoey">
+  <Navbar currentPath="/search" />
+
+  <main class="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6">
+    <header class="mb-5">
+      <h1 class="text-3xl font-black">Search results</h1>
+      <p class="mt-2 text-sm text-[rgba(249,250,251,0.70)]">
+        Location: <span class="font-semibold text-[#F9FAFB]">{location || "-"}</span>
+        {pickupDate && dropoffDate && (
+          <>
+            {" "}
+            &middot; {pickupDate.toLocaleString()} to {dropoffDate.toLocaleString()}
+          </>
+        )}
+      </p>
+    </header>
+
+    <Card class="p-5">
+      <form id="filters-form" class="grid gap-4 md:grid-cols-5" method="GET" action="/search">
+        <input type="hidden" name="location" value={location} />
+        <input type="hidden" name="pickup" value={pickup} />
+        <input type="hidden" name="dropoff" value={dropoff} />
+
+        <Select
+          id="price"
+          name="price"
+          label="Price range"
+          value={price}
+          options={[
+            { label: "All prices", value: "all" },
+            { label: "Under 2,500 THB", value: "under-2500" },
+            { label: "2,500 - 3,500 THB", value: "2500-3500" },
+            { label: "Above 3,500 THB", value: "above-3500" },
+          ]}
+        />
+
+        <Select
+          id="type"
+          name="type"
+          label="Type"
+          value={type}
+          options={[
+            { label: "All types", value: "all" },
+            { label: "Sedan", value: "sedan" },
+            { label: "SUV", value: "suv" },
+            { label: "Sport", value: "sport" },
+          ]}
+        />
+
+        <Select
+          id="brand"
+          name="brand"
+          label="Brand"
+          value={brand}
+          options={[{ label: "All brands", value: "all" }, ...brands.map((item) => ({ label: item, value: item }))]}
+        />
+
+        <Select
+          id="sort"
+          name="sort"
+          label="Sort by"
+          value={sort}
+          options={[
+            { label: "Recommended", value: "recommended" },
+            { label: "Price low to high", value: "price-asc" },
+            { label: "Price high to low", value: "price-desc" },
+            { label: "Rating", value: "rating" },
+          ]}
+        />
+
+        <div class="flex items-end">
+          <Button type="submit" variant="outline" fullWidth class="px-4 py-3">Apply filters</Button>
+        </div>
+      </form>
+      <p id="filter-loading" class="info-banner mt-4 hidden" aria-live="polite">Updating results...</p>
+    </Card>
+
+    {errors.length > 0 ? (
+      <section class="mt-5 space-y-2">
+        {errors.map((error) => (
+          <p class="status-banner">{error}</p>
+        ))}
+        <Button href="/" variant="outline" class="mt-2 px-4 py-2 text-sm">Back to search form</Button>
+      </section>
+    ) : sorted.length === 0 ? (
+      <Card class="mt-5 p-8 text-center">
+        <Badge variant="danger">No cars available</Badge>
+        <h2 class="mt-4 text-2xl font-black">No cars match your current filters</h2>
+        <p class="mt-2 text-sm text-[rgba(249,250,251,0.70)]">
+          Try changing your dates, location, or selecting a wider price range.
+        </p>
+        <div class="mt-5">
+          <Button href="/" variant="outline" class="px-5 py-3 text-sm">Search different dates</Button>
+        </div>
+      </Card>
+    ) : (
+      <section class="mt-5">
+        <div class="mb-3 flex items-center justify-between">
+          <p class="text-sm text-[rgba(249,250,251,0.70)]">{sorted.length} cars available</p>
+        </div>
+        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {sorted.map((car) => (
+            <CarCard car={car} pickup={pickup} dropoff={dropoff} location={location} />
+          ))}
+        </div>
+      </section>
+    )}
+  </main>
+
+  <Footer />
+
+  <script>
+    const form = document.querySelector("#filters-form");
+    const loading = document.querySelector("#filter-loading");
+    const submitBtn = form?.querySelector("button[type='submit']");
+    form?.addEventListener("submit", () => {
+      loading?.classList.remove("hidden");
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Updating...";
+      }
+    });
+  </script>
+</BaseLayout>

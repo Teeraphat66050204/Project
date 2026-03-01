@@ -1,0 +1,122 @@
+---
+import Button from "./Button.astro";
+
+type Props = {
+  currentPath?: string;
+};
+
+const { currentPath = "/" } = Astro.props;
+
+const navItems = [
+  { href: "/", label: "Home" },
+  { href: "/search", label: "Search" },
+  { href: "/account", label: "Account" },
+];
+---
+
+<header class="sticky top-0 z-40 border-b border-white/10 bg-[#1F2937]/95 backdrop-blur">
+  <div class="mx-auto flex w-full max-w-7xl items-center gap-4 px-4 py-4 sm:px-6">
+    <a href="/" class="text-xl font-black tracking-tight text-[#F9FAFB]">ChaoLoey</a>
+
+    <nav class="ml-auto hidden items-center gap-5 text-sm text-[rgba(249,250,251,0.70)] md:flex" aria-label="Primary">
+      {navItems.map((item) => (
+        <a href={item.href} class:list={["hover:text-[#F9FAFB]", currentPath === item.href && "text-[#F59E0B]"]}>
+          {item.label}
+        </a>
+      ))}
+      <a
+        id="nav-admin-link"
+        href="/admin"
+        class:list={["hidden hover:text-[#F9FAFB]", currentPath === "/admin" && "text-[#F59E0B]"]}
+      >
+        Admin
+      </a>
+    </nav>
+
+    <div id="guest-actions" class="ml-auto flex items-center gap-2 md:ml-4">
+      <Button href="/signin" variant="ghost" class="px-3 py-2 text-sm">Sign in</Button>
+      <Button href="/signup" variant="primary" class="px-4 py-2 text-sm">Sign up</Button>
+    </div>
+
+    <div id="user-actions" class="ml-auto hidden items-center gap-2 md:ml-4">
+      <a href="/account" class="rounded-xl border border-white/10 px-3 py-2 text-sm text-[rgba(249,250,251,0.92)] hover:border-[#F59E0B]/50">
+        Hi, <span id="nav-user-name" class="font-semibold">Member</span>
+      </a>
+      <button id="nav-signout-btn" type="button" class="btn-base btn-outline px-4 py-2 text-sm">Sign out</button>
+    </div>
+  </div>
+</header>
+
+<script>
+  const guestActions = document.querySelector("#guest-actions");
+  const userActions = document.querySelector("#user-actions");
+  const userName = document.querySelector("#nav-user-name");
+  const signoutBtn = document.querySelector("#nav-signout-btn");
+  const adminLink = document.querySelector("#nav-admin-link");
+
+  const readLocalUser = () => {
+    try {
+      const raw = localStorage.getItem("chaoloey_current_user");
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  };
+
+  const applySignedInState = (user) => {
+    guestActions?.classList.add("hidden");
+    userActions?.classList.remove("hidden");
+    if (userName) userName.textContent = user.name || user.email;
+  };
+
+  const applyGuestState = () => {
+    userActions?.classList.add("hidden");
+    guestActions?.classList.remove("hidden");
+    adminLink?.classList.add("hidden");
+  };
+
+  const syncAuthState = async () => {
+    const localUser = readLocalUser();
+    if (localUser?.email) {
+      applySignedInState(localUser);
+    }
+
+    try {
+      const res = await fetch("/api/auth/me", { method: "GET", credentials: "include" });
+      if (!res.ok) throw new Error("UNAUTHENTICATED");
+      const body = await res.json();
+      const apiUser = body?.data;
+      if (apiUser?.email) {
+        const user = { name: apiUser.name ?? apiUser.email, email: apiUser.email };
+        localStorage.setItem("chaoloey_current_user", JSON.stringify(user));
+        applySignedInState(user);
+        if (apiUser.role === "admin") {
+          adminLink?.classList.remove("hidden");
+        } else {
+          adminLink?.classList.add("hidden");
+        }
+        return;
+      }
+    } catch {
+      // If API auth is not available, fallback to local user state only.
+    }
+
+    if (!localUser?.email) {
+      applyGuestState();
+    }
+  };
+
+  syncAuthState();
+
+  signoutBtn?.addEventListener("click", async () => {
+    localStorage.removeItem("chaoloey_current_user");
+    adminLink?.classList.add("hidden");
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch {
+      // Keep client logout resilient even if API logout is unavailable.
+    }
+    window.location.href = "/";
+  });
+</script>

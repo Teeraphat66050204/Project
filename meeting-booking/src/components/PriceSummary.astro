@@ -1,0 +1,41 @@
+---
+type Line = {
+  label: string;
+  value: string;
+  muted?: boolean;
+};
+
+type Props = {
+  title?: string;
+  lines: Line[];
+  total: string;
+  totalLabel?: string;
+  class?: string;
+};
+
+const {
+  title = "Price Summary",
+  lines,
+  total,
+  totalLabel = "Total",
+  class: className = "",
+} = Astro.props;
+---
+
+<section class:list={["rounded-2xl border border-white/10 bg-[#1F2937] p-5", className]} aria-label={title}>
+  <h2 class="text-xl font-bold text-[#F9FAFB]">{title}</h2>
+  <div class="mt-4 space-y-2 text-sm">
+    {lines.map((line) => (
+      <p class="flex items-center justify-between gap-4">
+        <span class:list={["text-[rgba(249,250,251,0.70)]", line.muted && "text-[#EF4444]"]}>{line.label}</span>
+        <span class:list={["font-semibold text-[#F9FAFB]", line.muted && "text-[#EF4444]"]}>{line.value}</span>
+      </p>
+    ))}
+  </div>
+  <div class="mt-4 border-t border-white/10 pt-4">
+    <p class="flex items-center justify-between">
+      <span class="text-base font-semibold text-[#F9FAFB]">{totalLabel}</span>
+      <span class="text-2xl font-black text-[#F59E0B]">{total}</span>
+    </p>
+  </div>
+</section>

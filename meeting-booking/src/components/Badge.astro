@@ -1,0 +1,16 @@
+---
+type Variant = "default" | "success" | "warning" | "danger";
+type Props = { variant?: Variant; class?: string };
+const { variant = "default", class: className = "" } = Astro.props;
+
+const variantClass = {
+  default: "badge-default",
+  success: "badge-success",
+  warning: "badge-warning",
+  danger: "badge-danger",
+}[variant];
+---
+
+<span class:list={["badge-base", variantClass, className]}>
+  <slot />
+</span>

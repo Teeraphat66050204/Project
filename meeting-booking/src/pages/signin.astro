@@ -1,0 +1,116 @@
+---
+import Button from "../components/Button.astro";
+import Card from "../components/Card.astro";
+import Footer from "../components/Footer.astro";
+import Input from "../components/Input.astro";
+import Navbar from "../components/Navbar.astro";
+import BaseLayout from "../layouts/BaseLayout.astro";
+
+const next = Astro.url.searchParams.get("next") ?? "/account";
+---
+
+<BaseLayout title="Sign in | ChaoLoey">
+  <Navbar />
+
+  <main class="mx-auto w-full max-w-5xl px-4 py-12 sm:px-6">
+    <div class="mx-auto max-w-md">
+      <Card class="p-6">
+        <h1 class="text-3xl font-black">Sign in</h1>
+        <p class="mt-2 text-sm text-[rgba(249,250,251,0.70)]">Access your bookings and manage your rentals.</p>
+
+        <form id="signin-form" class="mt-5 space-y-4" novalidate>
+          <Input id="email" name="email" type="email" label="Email" placeholder="you@email.com" required autocomplete="email" />
+          <Input id="password" name="password" type="password" label="Password" placeholder="Your password" required autocomplete="current-password" />
+          <p id="signin-error" class="status-banner hidden" role="alert"></p>
+          <Button type="submit" variant="primary" fullWidth class="px-4 py-3">Sign in</Button>
+        </form>
+
+        <div class="my-4 flex items-center gap-3">
+          <div class="h-px flex-1 bg-white/10"></div>
+          <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[rgba(249,250,251,0.65)]">or</p>
+          <div class="h-px flex-1 bg-white/10"></div>
+        </div>
+
+        <Button href={`/api/auth/google/start?next=${encodeURIComponent(next)}`} variant="outline" fullWidth class="px-4 py-3">
+          Continue with Google
+        </Button>
+
+        <p class="mt-4 text-center text-sm text-[rgba(249,250,251,0.70)]">
+          New to ChaoLoey?
+          <a href={`/signup?next=${encodeURIComponent(next)}`} class="font-semibold text-[#F59E0B] hover:underline">Create an account</a>
+        </p>
+      </Card>
+    </div>
+  </main>
+
+  <Footer />
+
+  <script define:vars={{ next }}>
+    const form = document.querySelector("#signin-form");
+    const error = document.querySelector("#signin-error");
+    const btn = form?.querySelector("button[type='submit']");
+
+    const setError = (message) => {
+      if (!message) {
+        error.classList.add("hidden");
+        error.textContent = "";
+        return;
+      }
+      error.textContent = message;
+      error.classList.remove("hidden");
+    };
+
+    form?.addEventListener("submit", (event) => {
+      event.preventDefault();
+      setError("");
+      const email = form.querySelector("#email")?.value?.trim() ?? "";
+      const password = form.querySelector("#password")?.value ?? "";
+
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return setError("Please enter a valid email address.");
+      if (!password || password.length < 6) return setError("Password must be at least 6 characters.");
+
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = "Signing in...";
+      }
+
+      fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email, password }),
+      })
+        .then(async (res) => {
+          const body = await res.json().catch(() => null);
+          if (!res.ok || !body?.ok || !body?.data) {
+            throw new Error(body?.error || "INVALID_CREDENTIALS");
+          }
+          const user = body.data;
+          localStorage.setItem("chaoloey_current_user", JSON.stringify({ name: user.name, email: user.email }));
+          window.location.href = next;
+        })
+        .catch((err) => {
+          if (err?.message === "USE_SOCIAL_LOGIN") {
+            setError("This account uses Google sign-in. Please continue with Google.");
+            return;
+          }
+
+          const usersRaw = localStorage.getItem("chaoloey_users");
+          const users = usersRaw ? JSON.parse(usersRaw) : [];
+          const found = users.find((user) => user.email.toLowerCase() === email.toLowerCase() && user.password === password);
+          if (found) {
+            localStorage.setItem("chaoloey_current_user", JSON.stringify({ name: found.name, email: found.email }));
+            window.location.href = next;
+            return;
+          }
+          setError("Invalid email or password.");
+        })
+        .finally(() => {
+          if (btn) {
+            btn.disabled = false;
+            btn.textContent = "Sign in";
+          }
+        });
+    });
+  </script>
+</BaseLayout>

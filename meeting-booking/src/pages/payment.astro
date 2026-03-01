@@ -1,0 +1,172 @@
+---
+import Badge from "../components/Badge.astro";
+import Button from "../components/Button.astro";
+import Card from "../components/Card.astro";
+import Footer from "../components/Footer.astro";
+import Navbar from "../components/Navbar.astro";
+import BaseLayout from "../layouts/BaseLayout.astro";
+
+const bookingId = Astro.url.searchParams.get("bookingId") ?? "";
+---
+
+<BaseLayout title="Payment | ChaoLoey">
+  <Navbar currentPath="/search" />
+
+  <main class="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6">
+    <h1 class="text-3xl font-black">Payment</h1>
+    <p class="mt-2 text-sm text-[rgba(249,250,251,0.70)]">Booking ID: <span class="font-semibold text-[#F9FAFB]">{bookingId || "-"}</span></p>
+
+    <div id="payment-missing" class:list={["status-banner mt-5", bookingId ? "hidden" : ""]}>
+      Missing booking ID. Please return to booking form.
+    </div>
+
+    <div id="payment-layout" class:list={["mt-5 grid gap-6 lg:grid-cols-[1fr_320px]", !bookingId && "hidden"]}>
+      <Card class="p-6">
+        <h2 class="text-xl font-bold">Choose payment method</h2>
+        <fieldset class="mt-4 grid gap-3 sm:grid-cols-3">
+          <label class="rounded-2xl border border-white/10 bg-[#111827] p-3 text-sm">
+            <input type="radio" name="method" value="card" checked class="mr-2 accent-[#F59E0B]" />
+            Credit / Debit Card
+          </label>
+          <label class="rounded-2xl border border-white/10 bg-[#111827] p-3 text-sm">
+            <input type="radio" name="method" value="promptpay" class="mr-2 accent-[#F59E0B]" />
+            PromptPay
+          </label>
+          <label class="rounded-2xl border border-white/10 bg-[#111827] p-3 text-sm">
+            <input type="radio" name="method" value="paypal" class="mr-2 accent-[#F59E0B]" />
+            PayPal
+          </label>
+        </fieldset>
+
+        <div class="mt-5 rounded-2xl border border-white/10 bg-[#111827] p-4 text-sm text-[rgba(249,250,251,0.75)]">
+          <p>Secure payment simulation enabled.</p>
+          <p class="mt-1">You can test success/failure state before confirmation.</p>
+        </div>
+
+        <p id="payment-info" class="info-banner mt-4 hidden" aria-live="polite">Processing payment...</p>
+        <p id="payment-error" class="status-banner mt-4 hidden" role="alert">Payment failed. Please try again.</p>
+
+        <div class="mt-6 flex flex-wrap gap-3">
+          <Button id="pay-btn" type="button" variant="primary" class="px-6 py-3">Pay now</Button>
+          <Button href="/search" variant="ghost" class="px-5 py-3">Cancel</Button>
+        </div>
+      </Card>
+
+      <Card class="p-6">
+        <h2 class="text-xl font-bold">Summary</h2>
+        <p class="mt-2 text-sm text-[rgba(249,250,251,0.70)]" id="summary-car">-</p>
+        <p class="mt-1 text-sm text-[rgba(249,250,251,0.70)]" id="summary-date">-</p>
+        <p class="mt-1 text-sm text-[rgba(249,250,251,0.70)]" id="summary-location">-</p>
+        <div class="mt-4 border-t border-white/10 pt-4">
+          <p class="flex items-center justify-between">
+            <span class="text-sm text-[rgba(249,250,251,0.70)]">Total</span>
+            <span id="summary-total" class="text-2xl font-black text-[#F59E0B]">0 THB</span>
+          </p>
+        </div>
+        <div class="mt-4">
+          <Badge variant="warning">Mock gateway</Badge>
+        </div>
+      </Card>
+    </div>
+  </main>
+
+  <Footer />
+
+  <script define:vars={{ bookingId }}>
+    const key = bookingId ? `chaoloey_booking_${bookingId}` : "";
+    const raw = key ? sessionStorage.getItem(key) : null;
+    const booking = raw ? JSON.parse(raw) : null;
+    const getActiveOwnerKey = () => {
+      try {
+        const rawUser = localStorage.getItem("chaoloey_current_user");
+        if (rawUser) {
+          const user = JSON.parse(rawUser);
+          if (user?.email) return `user:${String(user.email).toLowerCase()}`;
+        }
+      } catch {
+        // ignore malformed user payload
+      }
+      const guestId = sessionStorage.getItem("chaoloey_guest_id");
+      return guestId ? `guest:${guestId}` : "guest:unknown";
+    };
+    const activeOwnerKey = getActiveOwnerKey();
+
+    const layout = document.querySelector("#payment-layout");
+    const missing = document.querySelector("#payment-missing");
+    const payBtn = document.querySelector("#pay-btn");
+    const info = document.querySelector("#payment-info");
+    const error = document.querySelector("#payment-error");
+
+    if ((!booking || booking.ownerKey !== activeOwnerKey) && bookingId) {
+      if (layout) layout.classList.add("hidden");
+      if (missing) {
+        missing.textContent = "Booking data not found for this account. Please create booking again.";
+        missing.classList.remove("hidden");
+      }
+    }
+
+    if (booking) {
+      document.querySelector("#summary-car").textContent = booking.carName;
+      document.querySelector("#summary-date").textContent = `${new Date(booking.pickup).toLocaleString()} - ${new Date(booking.dropoff).toLocaleString()}`;
+      document.querySelector("#summary-location").textContent = booking.location || "Location not provided";
+      document.querySelector("#summary-total").textContent = `${booking.pricing.total.toLocaleString()} THB`;
+    }
+
+    payBtn?.addEventListener("click", () => {
+      if (!booking) return;
+      error?.classList.add("hidden");
+      info?.classList.remove("hidden");
+      payBtn.disabled = true;
+      payBtn.textContent = "Processing...";
+
+      setTimeout(async () => {
+        const success = Math.random() > 0.2;
+        info?.classList.add("hidden");
+
+        if (!success) {
+          error?.classList.remove("hidden");
+          payBtn.disabled = false;
+          payBtn.textContent = "Retry payment";
+          return;
+        }
+
+        const updated = {
+          ...booking,
+          status: "confirmed",
+          transactionId: `TX-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`,
+          paidAt: new Date().toISOString(),
+        };
+
+        let persistedBookingId = bookingId;
+        try {
+          const syncRes = await fetch("/api/checkout/mock-sync", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({
+              bookingId: updated.id,
+              carName: updated.carName,
+              pickup: updated.pickup,
+              dropoff: updated.dropoff,
+              location: updated.location,
+              total: updated.pricing?.total,
+              customerName: updated.customer?.fullName ?? "Customer",
+              customerEmail: updated.customer?.email ?? "",
+              transactionId: updated.transactionId,
+            }),
+          });
+          const syncBody = await syncRes.json().catch(() => null);
+          if (syncRes.ok && syncBody?.ok && syncBody?.data?.bookingId) {
+            persistedBookingId = syncBody.data.bookingId;
+          }
+        } catch {
+          // keep front-end confirmation flow resilient even if DB sync fails
+        }
+
+        sessionStorage.setItem(key, JSON.stringify(updated));
+        sessionStorage.setItem("chaoloey_latest_booking_id", bookingId);
+        window.location.href = `/confirmation?bookingId=${encodeURIComponent(persistedBookingId)}`;
+      }, 1400);
+    });
+  </script>
+</BaseLayout>

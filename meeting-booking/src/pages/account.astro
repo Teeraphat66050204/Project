@@ -1,0 +1,159 @@
+---
+import Badge from "../components/Badge.astro";
+import Button from "../components/Button.astro";
+import Card from "../components/Card.astro";
+import Footer from "../components/Footer.astro";
+import Navbar from "../components/Navbar.astro";
+import BaseLayout from "../layouts/BaseLayout.astro";
+
+const focusBookingId = Astro.url.searchParams.get("focus") ?? "";
+---
+
+<BaseLayout title="My Account | ChaoLoey">
+  <Navbar currentPath="/account" />
+
+  <main class="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6">
+    <h1 class="text-3xl font-black">My account</h1>
+    <p id="user-info" class="mt-2 text-sm text-[rgba(249,250,251,0.70)]">Loading profile...</p>
+
+    <section class="mt-6">
+      <div id="bookings-empty" class="hidden">
+        <Card class="p-6 text-center">
+          <h2 class="text-2xl font-black">No bookings yet</h2>
+          <p class="mt-2 text-sm text-[rgba(249,250,251,0.70)]">Start by searching your next ride.</p>
+          <div class="mt-5">
+            <Button href="/" variant="primary" class="px-5 py-3">Back to home</Button>
+          </div>
+        </Card>
+      </div>
+
+      <div id="bookings-list" class="space-y-4"></div>
+    </section>
+  </main>
+
+  <Footer />
+
+  <script define:vars={{ focusBookingId }}>
+    const userInfo = document.querySelector("#user-info");
+    let currentUser = null;
+    try {
+      const currentUserRaw = localStorage.getItem("chaoloey_current_user");
+      currentUser = currentUserRaw ? JSON.parse(currentUserRaw) : null;
+    } catch {
+      currentUser = null;
+    }
+
+    const getActiveOwnerKey = () => {
+      if (currentUser?.email) return `user:${String(currentUser.email).toLowerCase()}`;
+      let guestId = sessionStorage.getItem("chaoloey_guest_id");
+      if (!guestId) {
+        guestId = `G-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
+        sessionStorage.setItem("chaoloey_guest_id", guestId);
+      }
+      return `guest:${guestId}`;
+    };
+    const activeOwnerKey = getActiveOwnerKey();
+
+    const renderUserInfo = (user) => {
+      if (user?.email) {
+        userInfo.textContent = `Signed in as ${user.name} (${user.email})`;
+      } else {
+        userInfo.textContent = "You are browsing as guest. Sign in to keep your history.";
+      }
+    };
+    renderUserInfo(currentUser);
+
+    (async () => {
+      try {
+        const res = await fetch("/api/auth/me", { method: "GET", credentials: "include" });
+        if (!res.ok) return;
+        const body = await res.json();
+        const apiUser = body?.data;
+        if (!apiUser?.email) return;
+        currentUser = { name: apiUser.name ?? apiUser.email, email: apiUser.email };
+        localStorage.setItem("chaoloey_current_user", JSON.stringify(currentUser));
+        renderUserInfo(currentUser);
+      } catch {
+        // keep fallback content
+      }
+    })();
+
+    const list = document.querySelector("#bookings-list");
+    const empty = document.querySelector("#bookings-empty");
+
+    const renderBookings = (bookings) => {
+      list.innerHTML = "";
+      if (!bookings.length) {
+        empty.classList.remove("hidden");
+        return;
+      }
+      empty.classList.add("hidden");
+      for (const booking of bookings) {
+        const card = document.createElement("article");
+        card.className = "card-premium rounded-2xl border border-white/10 bg-[#1F2937] p-5";
+        if (focusBookingId && booking.id === focusBookingId) {
+          card.style.borderColor = "rgba(245,158,11,0.55)";
+          card.style.boxShadow = "0 0 0 2px rgba(245,158,11,0.25)";
+        }
+
+        const statusClass =
+          booking.status?.toUpperCase?.() === "CONFIRMED"
+            ? "badge-success"
+            : booking.status?.toUpperCase?.() === "CANCELLED"
+              ? "badge-danger"
+              : "badge-warning";
+
+        card.innerHTML = `
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p class="text-xs uppercase tracking-wide text-[rgba(249,250,251,0.70)]">Booking ID</p>
+              <p class="mt-1 font-semibold text-[#F9FAFB]">${booking.id}</p>
+              <p class="mt-1 text-sm text-[rgba(249,250,251,0.70)]">${booking.car?.name || "-"}</p>
+              <p class="text-sm text-[rgba(249,250,251,0.70)]">${new Date(booking.startTime).toLocaleString()} - ${new Date(booking.endTime).toLocaleString()}</p>
+            </div>
+            <span class="badge-base ${statusClass}">${String(booking.status || "pending").toLowerCase()}</span>
+          </div>
+          <div class="mt-4 flex flex-wrap gap-2">
+            <a href="/confirmation?bookingId=${encodeURIComponent(booking.id)}" class="btn-base btn-outline px-4 py-2 text-sm">View details</a>
+            <button type="button" class="btn-base btn-danger px-4 py-2 text-sm cancel-btn">Cancel booking</button>
+          </div>
+        `;
+
+        const cancelBtn = card.querySelector(".cancel-btn");
+        cancelBtn.addEventListener("click", async () => {
+          if (String(booking.status).toUpperCase() === "CANCELLED") return;
+          cancelBtn.disabled = true;
+          cancelBtn.textContent = "Cancelling...";
+          try {
+            const res = await fetch(`/api/rentals/${encodeURIComponent(booking.id)}`, {
+              method: "PATCH",
+              credentials: "include",
+            });
+            if (!res.ok) throw new Error("CANCEL_FAILED");
+            await loadFromApi();
+          } catch {
+            cancelBtn.disabled = false;
+            cancelBtn.textContent = "Cancel booking";
+          }
+        });
+
+        list.appendChild(card);
+      }
+    };
+
+    const loadFromApi = async () => {
+      try {
+        const res = await fetch("/api/rentals", { method: "GET", credentials: "include" });
+        if (!res.ok) throw new Error("UNAUTHORIZED");
+        const body = await res.json();
+        const rows = Array.isArray(body?.data) ? body.data : [];
+        rows.sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
+        renderBookings(rows);
+      } catch {
+        renderBookings([]);
+      }
+    };
+
+    loadFromApi();
+  </script>
+</BaseLayout>

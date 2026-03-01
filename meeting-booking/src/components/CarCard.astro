@@ -1,0 +1,49 @@
+---
+import type { Car } from "../data/cars";
+import Button from "./Button.astro";
+import Card from "./Card.astro";
+
+type Props = {
+  car: Car;
+  pickup?: string;
+  dropoff?: string;
+  location?: string;
+  showRentNow?: boolean;
+};
+
+const { car, pickup = "", dropoff = "", location = "", showRentNow = true } = Astro.props;
+
+const detailParams = new URLSearchParams();
+if (pickup) detailParams.set("pickup", pickup);
+if (dropoff) detailParams.set("dropoff", dropoff);
+if (location) detailParams.set("location", location);
+const detailsHref = `/car/${car.id}${detailParams.toString() ? `?${detailParams.toString()}` : ""}`;
+
+const bookingParams = new URLSearchParams();
+bookingParams.set("carId", car.id);
+if (pickup) bookingParams.set("pickup", pickup);
+if (dropoff) bookingParams.set("dropoff", dropoff);
+if (location) bookingParams.set("location", location);
+const bookingHref = `/booking?${bookingParams.toString()}`;
+---
+
+<Card as="article" class="flex h-full flex-col gap-4 p-5">
+  <img src={car.image} alt={car.name} class="h-44 w-full rounded-2xl border border-white/10 object-cover" loading="lazy" />
+  <div>
+    <p class="text-xs uppercase tracking-wide text-[rgba(249,250,251,0.70)]">{car.brand} &middot; {car.type}</p>
+    <h3 class="mt-1 text-xl font-bold text-[#F9FAFB]">{car.name}</h3>
+    <p class="mt-1 text-sm text-[rgba(249,250,251,0.70)]">
+      <span class="text-lg font-black text-[#F59E0B]">{car.pricePerDay.toLocaleString()} THB</span> / day
+    </p>
+  </div>
+  <div class="flex flex-wrap gap-2 text-xs text-[rgba(249,250,251,0.80)]">
+    <span class="rounded-full border border-white/10 px-3 py-1">{car.seats} seats</span>
+    <span class="rounded-full border border-white/10 px-3 py-1">{car.gear}</span>
+    <span class="rounded-full border border-white/10 px-3 py-1">{car.fuel}</span>
+    <span class="rounded-full border border-[#F59E0B]/40 px-3 py-1 text-[#F59E0B]">&starf; {car.rating.toFixed(1)}</span>
+  </div>
+  <div class="mt-auto grid gap-2 sm:grid-cols-2">
+    <Button href={detailsHref} variant="outline" class="px-4 py-2 text-center text-sm">View details</Button>
+    {showRentNow && <Button href={bookingHref} variant="primary" class="px-4 py-2 text-center text-sm">Rent now</Button>}
+  </div>
+</Card>

@@ -1,0 +1,53 @@
+---
+type Variant = "primary" | "outline" | "ghost" | "danger";
+
+type Props = {
+  id?: string;
+  variant?: Variant;
+  href?: string;
+  type?: "button" | "submit" | "reset";
+  disabled?: boolean;
+  fullWidth?: boolean;
+  class?: string;
+  ariaLabel?: string;
+};
+
+const {
+  id,
+  variant = "primary",
+  href,
+  type = "button",
+  disabled = false,
+  fullWidth = false,
+  class: className = "",
+  ariaLabel,
+} = Astro.props;
+
+const variantClass = {
+  primary: "btn-primary",
+  outline: "btn-outline",
+  ghost: "btn-ghost",
+  danger: "btn-danger",
+}[variant];
+---
+
+{href ? (
+  <a
+    id={id}
+    href={href}
+    aria-label={ariaLabel}
+    class:list={["btn-base", variantClass, fullWidth && "w-full justify-center", className]}
+  >
+    <slot />
+  </a>
+) : (
+  <button
+    id={id}
+    type={type}
+    aria-label={ariaLabel}
+    disabled={disabled}
+    class:list={["btn-base", variantClass, fullWidth && "w-full justify-center", className]}
+  >
+    <slot />
+  </button>
+)}

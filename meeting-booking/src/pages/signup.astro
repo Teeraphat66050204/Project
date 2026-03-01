@@ -1,0 +1,129 @@
+---
+import Button from "../components/Button.astro";
+import Card from "../components/Card.astro";
+import Footer from "../components/Footer.astro";
+import Input from "../components/Input.astro";
+import Navbar from "../components/Navbar.astro";
+import BaseLayout from "../layouts/BaseLayout.astro";
+
+const next = Astro.url.searchParams.get("next") ?? "/account";
+---
+
+<BaseLayout title="Sign up | ChaoLoey">
+  <Navbar />
+
+  <main class="mx-auto w-full max-w-5xl px-4 py-12 sm:px-6">
+    <div class="mx-auto max-w-md">
+      <Card class="p-6">
+        <h1 class="text-3xl font-black">Create account</h1>
+        <p class="mt-2 text-sm text-[rgba(249,250,251,0.70)]">Join ChaoLoey and track every booking in one place.</p>
+
+        <form id="signup-form" class="mt-5 space-y-4" novalidate>
+          <Input id="fullName" name="fullName" label="Full name" placeholder="Name Surname" required autocomplete="name" />
+          <Input id="email" name="email" type="email" label="Email" placeholder="you@email.com" required autocomplete="email" />
+          <Input id="password" name="password" type="password" label="Password" placeholder="At least 6 characters" required autocomplete="new-password" />
+          <Input id="confirmPassword" name="confirmPassword" type="password" label="Confirm password" placeholder="Re-enter password" required autocomplete="new-password" />
+          <p id="signup-error" class="status-banner hidden" role="alert"></p>
+          <Button type="submit" variant="primary" fullWidth class="px-4 py-3">Create account</Button>
+        </form>
+
+        <div class="my-4 flex items-center gap-3">
+          <div class="h-px flex-1 bg-white/10"></div>
+          <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[rgba(249,250,251,0.65)]">or</p>
+          <div class="h-px flex-1 bg-white/10"></div>
+        </div>
+
+        <Button href={`/api/auth/google/start?next=${encodeURIComponent(next)}`} variant="outline" fullWidth class="px-4 py-3">
+          Continue with Google
+        </Button>
+
+        <p class="mt-4 text-center text-sm text-[rgba(249,250,251,0.70)]">
+          Already have an account?
+          <a href={`/signin?next=${encodeURIComponent(next)}`} class="font-semibold text-[#F59E0B] hover:underline">Sign in</a>
+        </p>
+      </Card>
+    </div>
+  </main>
+
+  <Footer />
+
+  <script define:vars={{ next }}>
+    const form = document.querySelector("#signup-form");
+    const error = document.querySelector("#signup-error");
+    const btn = form?.querySelector("button[type='submit']");
+
+    const setError = (message) => {
+      if (!message) {
+        error.classList.add("hidden");
+        error.textContent = "";
+        return;
+      }
+      error.textContent = message;
+      error.classList.remove("hidden");
+    };
+
+    form?.addEventListener("submit", (event) => {
+      event.preventDefault();
+      setError("");
+
+      const fullName = form.querySelector("#fullName")?.value?.trim() ?? "";
+      const email = form.querySelector("#email")?.value?.trim() ?? "";
+      const password = form.querySelector("#password")?.value ?? "";
+      const confirmPassword = form.querySelector("#confirmPassword")?.value ?? "";
+
+      if (!fullName || fullName.length < 2) return setError("Please enter your full name.");
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return setError("Please enter a valid email address.");
+      if (!password || password.length < 6) return setError("Password must be at least 6 characters.");
+      if (password !== confirmPassword) return setError("Passwords do not match.");
+
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = "Creating account...";
+      }
+
+      fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ name: fullName, email, password }),
+      })
+        .then(async (res) => {
+          const body = await res.json().catch(() => null);
+          if (!res.ok || !body?.ok || !body?.data) {
+            throw new Error(body?.error || "REGISTER_FAILED");
+          }
+          const user = body.data;
+          localStorage.setItem("chaoloey_current_user", JSON.stringify({ name: user.name, email: user.email }));
+          window.location.href = next;
+        })
+        .catch((err) => {
+          if (err?.message === "EMAIL_ALREADY_EXISTS") {
+            setError("This email is already registered.");
+            return;
+          }
+          if (err?.message === "USE_SOCIAL_LOGIN") {
+            setError("This email already uses Google sign-in.");
+            return;
+          }
+
+          const usersRaw = localStorage.getItem("chaoloey_users");
+          const users = usersRaw ? JSON.parse(usersRaw) : [];
+          const exists = users.some((user) => user.email.toLowerCase() === email.toLowerCase());
+          if (exists) {
+            setError("This email is already registered.");
+            return;
+          }
+          users.push({ name: fullName, email, password });
+          localStorage.setItem("chaoloey_users", JSON.stringify(users));
+          localStorage.setItem("chaoloey_current_user", JSON.stringify({ name: fullName, email }));
+          window.location.href = next;
+        })
+        .finally(() => {
+          if (btn) {
+            btn.disabled = false;
+            btn.textContent = "Create account";
+          }
+        });
+    });
+  </script>
+</BaseLayout>

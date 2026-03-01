@@ -1,0 +1,243 @@
+---
+import Badge from "../components/Badge.astro";
+import Button from "../components/Button.astro";
+import Card from "../components/Card.astro";
+import Footer from "../components/Footer.astro";
+import Input from "../components/Input.astro";
+import Navbar from "../components/Navbar.astro";
+import PriceSummary from "../components/PriceSummary.astro";
+import { getCarById } from "../data/cars";
+import { calculatePricing, formatDateTime, isDateRangeValid, parseDate } from "../lib/booking-flow";
+import BaseLayout from "../layouts/BaseLayout.astro";
+
+const params = Astro.url.searchParams;
+const carId = params.get("carId") ?? "";
+const pickup = params.get("pickup") ?? "";
+const dropoff = params.get("dropoff") ?? "";
+const location = params.get("location") ?? "";
+
+const car = getCarById(carId);
+const pickupDate = parseDate(pickup);
+const dropoffDate = parseDate(dropoff);
+const dateValid = isDateRangeValid(pickupDate, dropoffDate);
+
+const pricing =
+  car && pickupDate && dropoffDate && dateValid
+    ? calculatePricing({
+        car,
+        pickup: pickupDate,
+        dropoff: dropoffDate,
+        insurance: false,
+        gps: false,
+        childSeat: false,
+      })
+    : null;
+---
+
+<BaseLayout title="Booking Form | ChaoLoey">
+  <Navbar currentPath="/search" />
+
+  <main class="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6">
+    <h1 class="text-3xl font-black">Enter booking details</h1>
+
+    {!car || !pickupDate || !dropoffDate || !dateValid ? (
+      <Card class="mt-5 p-6">
+        <p class="status-banner">Missing or invalid booking information. Please choose a car and valid schedule first.</p>
+        <div class="mt-4">
+          <Button href="/search" variant="outline" class="px-5 py-3">Go to search</Button>
+        </div>
+      </Card>
+    ) : (
+      <div class="mt-5 grid gap-6 lg:grid-cols-[1fr_360px]">
+        <Card class="p-6">
+          <div class="mb-5 rounded-2xl border border-white/10 bg-[#111827] p-4">
+            <p class="text-sm text-[rgba(249,250,251,0.70)]">Selected car</p>
+            <h2 class="mt-1 text-xl font-bold">{car.name}</h2>
+            <p class="mt-2 text-sm text-[rgba(249,250,251,0.70)]">
+              {formatDateTime(pickupDate)} to {formatDateTime(dropoffDate)} &middot; {location || "No location selected"}
+            </p>
+          </div>
+
+          <form id="booking-form" class="space-y-4" novalidate>
+            <Input id="fullName" name="fullName" label="Full name" placeholder="Name Surname" required />
+            <Input id="phone" name="phone" type="tel" label="Phone" placeholder="08x-xxx-xxxx" required />
+            <Input id="email" name="email" type="email" label="Email" placeholder="you@email.com" required />
+            <Input id="licenseNo" name="licenseNo" label="Driver license no." placeholder="License number" required />
+
+            <fieldset class="rounded-2xl border border-white/10 p-4">
+              <legend class="px-2 text-sm font-semibold text-[#F9FAFB]">Add-ons</legend>
+              <div class="mt-2 grid gap-3 sm:grid-cols-3">
+                <label class="flex items-center gap-2 text-sm text-[rgba(249,250,251,0.80)]">
+                  <input id="addon-insurance" type="checkbox" class="h-4 w-4 accent-[#F59E0B]" />
+                  Extra insurance
+                </label>
+                <label class="flex items-center gap-2 text-sm text-[rgba(249,250,251,0.80)]">
+                  <input id="addon-gps" type="checkbox" class="h-4 w-4 accent-[#F59E0B]" />
+                  GPS
+                </label>
+                <label class="flex items-center gap-2 text-sm text-[rgba(249,250,251,0.80)]">
+                  <input id="addon-seat" type="checkbox" class="h-4 w-4 accent-[#F59E0B]" />
+                  Child seat
+                </label>
+              </div>
+            </fieldset>
+
+            <p id="booking-error" class="status-banner hidden" role="alert"></p>
+
+            <div class="flex flex-wrap gap-3">
+              <Button type="submit" variant="primary" class="px-6 py-3">Proceed to payment</Button>
+              <Button href={`/car/${car.id}?${new URLSearchParams({ pickup, dropoff, location }).toString()}`} variant="ghost" class="px-5 py-3">
+                Back
+              </Button>
+            </div>
+          </form>
+        </Card>
+
+        <PriceSummary
+          title="Booking Summary"
+          lines={[
+            { label: "Rental days", value: `${pricing.days} day(s)` },
+            { label: "Base rental", value: `${pricing.base.toLocaleString()} THB` },
+            { label: "Service fee", value: `${pricing.service.toLocaleString()} THB` },
+            { label: "Insurance", value: `${pricing.insurance.toLocaleString()} THB` },
+            { label: "GPS", value: `${pricing.gps.toLocaleString()} THB` },
+            { label: "Child seat", value: `${pricing.childSeat.toLocaleString()} THB` },
+            { label: "Tax", value: `${pricing.tax.toLocaleString()} THB` },
+          ]}
+          total={`${pricing.total.toLocaleString()} THB`}
+        />
+      </div>
+    )}
+  </main>
+
+  <Footer />
+
+  {car && pickupDate && dropoffDate && dateValid && pricing && (
+    <script define:vars={{
+      car,
+      carId,
+      pickup,
+      dropoff,
+      location,
+      basePricing: pricing,
+    }}>
+      const form = document.querySelector("#booking-form");
+      const errorEl = document.querySelector("#booking-error");
+      const btn = form?.querySelector("button[type='submit']");
+
+      const insuranceCheckbox = document.querySelector("#addon-insurance");
+      const gpsCheckbox = document.querySelector("#addon-gps");
+      const seatCheckbox = document.querySelector("#addon-seat");
+
+      const lineNodes = Array.from(document.querySelectorAll("section[aria-label='Price Summary'] .space-y-2 p span:last-child"));
+      const totalNode = document.querySelector("section[aria-label='Price Summary'] .text-2xl");
+
+      const getActiveOwnerKey = () => {
+        try {
+          const rawUser = localStorage.getItem("chaoloey_current_user");
+          if (rawUser) {
+            const user = JSON.parse(rawUser);
+            if (user?.email) return `user:${String(user.email).toLowerCase()}`;
+          }
+        } catch {
+          // ignore malformed user payload
+        }
+
+        let guestId = sessionStorage.getItem("chaoloey_guest_id");
+        if (!guestId) {
+          guestId = `G-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
+          sessionStorage.setItem("chaoloey_guest_id", guestId);
+        }
+        return `guest:${guestId}`;
+      };
+
+      const setError = (message) => {
+        if (!errorEl) return;
+        if (!message) {
+          errorEl.classList.add("hidden");
+          errorEl.textContent = "";
+          return;
+        }
+        errorEl.textContent = message;
+        errorEl.classList.remove("hidden");
+      };
+
+      const calculate = () => {
+        const insurance = insuranceCheckbox?.checked;
+        const gps = gpsCheckbox?.checked;
+        const childSeat = seatCheckbox?.checked;
+        const days = basePricing.days;
+        const base = car.pricePerDay * days;
+        const service = Math.round(base * 0.08);
+        const i = insurance ? 350 * days : 0;
+        const g = gps ? 120 * days : 0;
+        const c = childSeat ? 150 * days : 0;
+        const subtotal = base + service + i + g + c;
+        const tax = Math.round(subtotal * 0.07);
+        const total = subtotal + tax;
+
+        if (lineNodes.length >= 7) {
+          lineNodes[1].textContent = `${base.toLocaleString()} THB`;
+          lineNodes[2].textContent = `${service.toLocaleString()} THB`;
+          lineNodes[3].textContent = `${i.toLocaleString()} THB`;
+          lineNodes[4].textContent = `${g.toLocaleString()} THB`;
+          lineNodes[5].textContent = `${c.toLocaleString()} THB`;
+          lineNodes[6].textContent = `${tax.toLocaleString()} THB`;
+        }
+        if (totalNode) totalNode.textContent = `${total.toLocaleString()} THB`;
+
+        return { days, base, service, insurance: i, gps: g, childSeat: c, tax, total };
+      };
+
+      insuranceCheckbox?.addEventListener("change", calculate);
+      gpsCheckbox?.addEventListener("change", calculate);
+      seatCheckbox?.addEventListener("change", calculate);
+
+      form?.addEventListener("submit", (event) => {
+        event.preventDefault();
+        setError("");
+
+        const fullName = form.querySelector("#fullName")?.value?.trim() ?? "";
+        const phone = form.querySelector("#phone")?.value?.trim() ?? "";
+        const email = form.querySelector("#email")?.value?.trim() ?? "";
+        const licenseNo = form.querySelector("#licenseNo")?.value?.trim() ?? "";
+
+        if (!fullName || fullName.length < 2) return setError("Please enter a valid full name.");
+        if (!phone || phone.replace(/\D/g, "").length < 9) return setError("Please enter a valid phone number.");
+        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return setError("Please enter a valid email.");
+        if (!licenseNo || licenseNo.length < 5) return setError("Please enter a valid driver license number.");
+
+        const pricing = calculate();
+        const bookingId = `BK-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
+        const ownerKey = getActiveOwnerKey();
+        const payload = {
+          id: bookingId,
+          ownerKey,
+          status: "pending",
+          createdAt: new Date().toISOString(),
+          carId,
+          carName: car.name,
+          location,
+          pickup,
+          dropoff,
+          customer: { fullName, phone, email, licenseNo },
+          addons: {
+            insurance: Boolean(insuranceCheckbox?.checked),
+            gps: Boolean(gpsCheckbox?.checked),
+            childSeat: Boolean(seatCheckbox?.checked),
+          },
+          pricing,
+        };
+
+        sessionStorage.setItem(`chaoloey_booking_${bookingId}`, JSON.stringify(payload));
+        sessionStorage.setItem("chaoloey_latest_booking_id", bookingId);
+
+        if (btn) {
+          btn.disabled = true;
+          btn.textContent = "Preparing payment...";
+        }
+        window.location.href = `/payment?bookingId=${encodeURIComponent(bookingId)}`;
+      });
+    </script>
+  )}
+</BaseLayout>

@@ -1,0 +1,12 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import "../../styles/global.css";
+import { CarDetailPage } from "../../components/islands/CarDetailPage";
+
+const carId = Astro.params.id ?? "";
+---
+
+<Layout>
+  <CarDetailPage client:load carId={carId} />
+</Layout>
+
