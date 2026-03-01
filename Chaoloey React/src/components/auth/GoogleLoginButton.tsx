@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
+import { useLanguage } from "@/components/providers/LanguageProvider";
 
 declare global {
   interface Window {
@@ -36,6 +37,7 @@ type Props = {
 const SCRIPT_ID = "google-identity-services";
 
 export default function GoogleLoginButton({ onSuccessRedirect = "/account" }: Props) {
+  const { lang } = useLanguage();
   const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
   const divId = useId().replace(/:/g, "");
   const [error, setError] = useState("");
@@ -89,20 +91,25 @@ export default function GoogleLoginButton({ onSuccessRedirect = "/account" }: Pr
 
     const existing = document.getElementById(SCRIPT_ID) as HTMLScriptElement | null;
     if (existing) {
-      if (window.google) bootstrap();
-      else existing.addEventListener("load", bootstrap, { once: true });
+      existing.remove();
+      initialized.current = false;
+    }
+
+    if (window.google) {
+      bootstrap();
       return;
     }
 
     const script = document.createElement("script");
     script.id = SCRIPT_ID;
-    script.src = "https://accounts.google.com/gsi/client";
+    // Follow selected app language for Google identity button labels.
+    script.src = `https://accounts.google.com/gsi/client?hl=${lang}`;
     script.async = true;
     script.defer = true;
     script.onload = bootstrap;
     script.onerror = () => setError("Failed to load Google script.");
     document.head.appendChild(script);
-  }, [clientId, divId, onSuccessRedirect]);
+  }, [clientId, divId, onSuccessRedirect, lang]);
 
   return (
     <div>

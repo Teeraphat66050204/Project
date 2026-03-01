@@ -3,12 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 4321",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "prisma:generate": "prisma generate",
-    "seed": "tsx scripts/seed.ts"
+    "seed": "tsx scripts/seed.ts",
+    "dev:astro": "next dev -H 127.0.0.1 -p 4321",
+    "dev:lan": "next dev -H 0.0.0.0 -p 4321"
   },
   "dependencies": {
     "@googlemaps/js-api-loader": "^2.0.2",

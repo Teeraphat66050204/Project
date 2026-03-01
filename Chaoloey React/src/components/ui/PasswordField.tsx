@@ -21,7 +21,7 @@ export default function PasswordField({ inputClassName = "", ...props }: Passwor
         aria-label={show ? "Hide password" : "Show password"}
         aria-pressed={show}
         onClick={() => setShow((v) => !v)}
-        className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg px-2 py-1 text-white/70 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F59E0B]/40"
+        className="absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded-lg border border-white/10 bg-[#111827] px-2 py-1 text-white/80 transition hover:border-[#F59E0B]/50 hover:text-[#F59E0B] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F59E0B]/40"
       >
         {show ? (
           <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
