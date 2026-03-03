@@ -52,24 +52,24 @@ export async function POST(req: Request) {
       select: { id: true },
     });
 
-    let room = await db.room.findFirst({
+    let car = await db.car.findFirst({
       where: { name: body.carName.trim() },
       select: { id: true },
     });
-    if (!room) {
-      room = await db.room.create({
+    if (!car) {
+      car = await db.car.create({
         data: { name: body.carName.trim(), capacity: 5 },
         select: { id: true },
       });
     }
 
     let booking = await db.booking.findFirst({
-      where: { userId: user.id, roomId: room.id, startTime, endTime },
+      where: { userId: user.id, carId: car.id, startTime, endTime },
       select: { id: true },
     });
     if (!booking) {
       booking = await db.booking.create({
-        data: { userId: user.id, roomId: room.id, startTime, endTime, status: "CONFIRMED" },
+        data: { userId: user.id, carId: car.id, startTime, endTime, status: "CONFIRMED" },
         select: { id: true },
       });
     }

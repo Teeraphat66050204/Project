@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -19,37 +20,39 @@ model User {
   holds     BookingHold[]
 }
 
-model Room {
+model Car {
   id       String @id @default(cuid())
   name     String
   capacity Int
   bookings Booking[]
   holds    BookingHold[]
+
+  @@map("Room")
 }
 
 model Booking {
   id           String               @id @default(cuid())
   userId       String
-  roomId       String
+  carId        String               @map("roomId")
   startTime    DateTime
   endTime      DateTime
   status       String               @default("CONFIRMED")
   user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  room         Room                 @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  car          Car                  @relation(fields: [carId], references: [id], onDelete: Cascade)
   confirmation BookingConfirmation?
 }
 
 model BookingHold {
   id         String   @id @default(cuid())
   userId     String
-  roomId     String
+  carId      String   @map("roomId")
   startTime  DateTime
   endTime    DateTime
   expiresAt  DateTime
   location   String?
   createdAt  DateTime @default(now())
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  room       Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  car        Car      @relation(fields: [carId], references: [id], onDelete: Cascade)
 }
 
 model BookingConfirmation {

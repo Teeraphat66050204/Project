@@ -1,0 +1,11 @@
+To: member@demo.com
+Subject: Booking Confirmation RCPT-20260302-2471
+SentAt: 2026-03-02T16:31:48.824Z
+
+Booking ID: cmm9ecdaj0003sbcugba26b9x
+Receipt No: RCPT-20260302-2471
+Car: Nissan GT-R
+Pickup: 2026-03-03T02:00:00.000Z
+Return: 2026-03-06T02:00:00.000Z
+Location: Chiang Mai
+Total: 7,983 Baht

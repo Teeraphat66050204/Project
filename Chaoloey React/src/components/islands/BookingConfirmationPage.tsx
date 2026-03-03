@@ -7,9 +7,18 @@ type ConfirmationState = {
   confirmation: BookingConfirmation;
 };
 
+function displayBookingId(rawBookingId: string, receiptNo?: string): string {
+  if (receiptNo) {
+    const match = receiptNo.match(/(\d{8})-(\d+)/);
+    if (match) return `BK-${match[1]}-${match[2]}`;
+  }
+  return `BK-${rawBookingId.slice(-8).toUpperCase()}`;
+}
+
 function buildQrData(state: ConfirmationState): string {
   return JSON.stringify({
-    bookingId: state.booking.id,
+    bookingId: displayBookingId(state.booking.id, state.confirmation.receiptNo),
+    bookingRef: state.booking.id,
     receiptNo: state.confirmation.receiptNo,
     car: state.booking.car?.name,
     pickupAt: state.booking.startTime,
@@ -61,6 +70,10 @@ export function BookingConfirmationPage() {
     const data = buildQrData(state);
     return `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(data)}`;
   }, [state]);
+  const bookingDisplayId = useMemo(
+    () => (state ? displayBookingId(state.booking.id, state.confirmation.receiptNo) : ""),
+    [state],
+  );
 
   const handleDownloadReceipt = () => {
     if (!state) return;
@@ -68,7 +81,8 @@ export function BookingConfirmationPage() {
       "CHAOLOEY RECEIPT",
       `Receipt No: ${state.confirmation.receiptNo}`,
       `Transaction: ${state.confirmation.transactionId}`,
-      `Booking ID: ${state.booking.id}`,
+      `Booking ID: ${bookingDisplayId}`,
+      `Booking Ref: ${state.booking.id}`,
       `Car: ${state.booking.car?.name ?? "-"}`,
       `Pickup: ${state.booking.startTime}`,
       `Return: ${state.booking.endTime}`,
@@ -105,7 +119,8 @@ export function BookingConfirmationPage() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <p className="text-xs font-semibold tracking-wide text-blue-600">BOOKING ID</p>
-                  <p className="text-lg font-bold text-slate-900">{state.booking.id}</p>
+                  <p className="text-lg font-bold text-slate-900">{bookingDisplayId}</p>
+                  <p className="mt-1 text-xs text-slate-500">Ref: {state.booking.id}</p>
                 </div>
                 <div>
                   <p className="text-xs font-semibold tracking-wide text-blue-600">RECEIPT NO</p>
@@ -156,4 +171,3 @@ export function BookingConfirmationPage() {
     </main>
   );
 }
-

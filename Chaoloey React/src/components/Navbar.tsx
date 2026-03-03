@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { LinkButton } from "@/components/ui/Button";
 import { useLanguage } from "@/components/providers/LanguageProvider";
@@ -36,6 +37,7 @@ const COPY = {
 
 export default function Navbar() {
   const [me, setMe] = useState<Me>(null);
+  const router = useRouter();
   const { lang, toggleLang } = useLanguage();
 
   useEffect(() => {
@@ -63,7 +65,10 @@ export default function Navbar() {
           {me?.role === "admin" && <Link href="/admin" className="text-[#F59E0B]">{t.admin}</Link>}
           <button
             type="button"
-            onClick={toggleLang}
+            onClick={() => {
+              toggleLang();
+              router.refresh();
+            }}
             aria-label={t.switchLangAria}
             className="rounded-lg border border-white/10 px-3 py-1.5 text-sm text-white/90 transition hover:border-[#F59E0B]/50 hover:text-[#F59E0B] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F59E0B]/40"
           >

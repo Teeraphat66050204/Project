@@ -33,14 +33,14 @@ function mapAppointmentRow(item: {
   startTime: Date;
   endTime: Date;
   user: { name: string; email: string };
-  room: { name: string };
+  car: { name: string };
   confirmation: { amount: number; pickupLocation: string | null } | null;
 }) {
   return {
     bookingId: item.id,
     customerName: item.user.name,
     customerEmail: item.user.email,
-    carName: item.room.name,
+    carName: item.car.name,
     pickupAt: item.startTime.toISOString(),
     returnAt: item.endTime.toISOString(),
     pickupLocation: item.confirmation?.pickupLocation ?? "-",
@@ -93,7 +93,7 @@ export async function getAdminDashboardData() {
       where: { status: "CONFIRMED", startTime: { gte: todayStart, lt: tomorrowStart } },
       include: {
         user: { select: { name: true, email: true } },
-        room: { select: { name: true } },
+        car: { select: { name: true } },
         confirmation: { select: { amount: true, pickupLocation: true } },
       },
       orderBy: { startTime: "asc" },
@@ -103,7 +103,7 @@ export async function getAdminDashboardData() {
       where: { status: "CONFIRMED", startTime: { gte: now } },
       include: {
         user: { select: { name: true, email: true } },
-        room: { select: { name: true } },
+        car: { select: { name: true } },
         confirmation: { select: { amount: true, pickupLocation: true } },
       },
       orderBy: { startTime: "asc" },

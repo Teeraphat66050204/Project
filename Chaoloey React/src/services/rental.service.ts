@@ -60,12 +60,12 @@ export async function createRental(input: {
     throw new RentalError("MAX_RENTAL_DURATION", "Rental duration too long", 400);
   }
 
-  const overlap = await findOverlappingBooking({ roomId: input.carId, startTime: start, endTime: end });
+  const overlap = await findOverlappingBooking({ carId: input.carId, startTime: start, endTime: end });
   if (overlap) throw new RentalError("TIME_OVERLAP", "This car is already reserved in that time range", 409);
 
   return createRentalWithGeneratedId({
     userId: input.userId,
-    roomId: input.carId,
+    carId: input.carId,
     startTime: start,
     endTime: end,
     status: "CONFIRMED",

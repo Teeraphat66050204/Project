@@ -16,7 +16,7 @@ import { ApiError, createRental, getCars, getRentals, type Car, type Rental } fr
 import { BookingModal } from "./BookingModal";
 import { BookingTimeline, type ViewMode } from "./BookingTimeline";
 import { MiniCalendar } from "./MiniCalendar";
-import { CarSelect } from "./RoomSelect";
+import { CarSelect } from "./CarSelect";
 import { ToastViewport, type ToastItem } from "./ToastViewport";
 
 const MAX_DURATION_MINUTES = 720;
@@ -364,3 +364,4 @@ export function BookingCalendarCore({ initialCarId = "" }: BookingCalendarCorePr
     </div>
   );
 }
+

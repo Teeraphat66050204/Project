@@ -12,13 +12,13 @@ export async function listRentals(input?: { userId?: string; carId?: string; fro
   return db.booking.findMany({
     where: {
       ...(input?.includeAll ? {} : input?.userId ? { userId: input.userId } : {}),
-      ...(input?.carId ? { roomId: input.carId } : {}),
+      ...(input?.carId ? { carId: input.carId } : {}),
       ...(input?.from ? { endTime: { gte: input.from } } : {}),
       ...(input?.to ? { startTime: { lte: input.to } } : {}),
     },
     include: {
       user: { select: { id: true, name: true, email: true } },
-      room: { select: { id: true, name: true, capacity: true } },
+      car: { select: { id: true, name: true, capacity: true } },
       confirmation: true,
     },
     orderBy: { startTime: "desc" },
@@ -30,16 +30,16 @@ export async function getRentalById(id: string) {
     where: { id },
     include: {
       user: { select: { id: true, name: true, email: true } },
-      room: { select: { id: true, name: true, capacity: true } },
+      car: { select: { id: true, name: true, capacity: true } },
       confirmation: true,
     },
   });
 }
 
-export async function findOverlappingBooking(input: { roomId: string; startTime: Date; endTime: Date }) {
+export async function findOverlappingBooking(input: { carId: string; startTime: Date; endTime: Date }) {
   return db.booking.findFirst({
     where: {
-      roomId: input.roomId,
+      carId: input.carId,
       status: "CONFIRMED",
       startTime: { lt: input.endTime },
       endTime: { gt: input.startTime },
@@ -50,7 +50,7 @@ export async function findOverlappingBooking(input: { roomId: string; startTime:
 
 export async function createRentalWithGeneratedId(input: {
   userId: string;
-  roomId: string;
+  carId: string;
   startTime: Date;
   endTime: Date;
   status?: string;
@@ -62,14 +62,14 @@ export async function createRentalWithGeneratedId(input: {
         data: {
           id,
           userId: input.userId,
-          roomId: input.roomId,
+          carId: input.carId,
           startTime: input.startTime,
           endTime: input.endTime,
           status: input.status ?? "CONFIRMED",
         },
         include: {
           user: { select: { id: true, name: true, email: true } },
-          room: { select: { id: true, name: true, capacity: true } },
+          car: { select: { id: true, name: true, capacity: true } },
         },
       });
     } catch (error) {

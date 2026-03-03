@@ -4,23 +4,23 @@ import { cancelRental, createRental, deleteRentalByAdmin, getRental, getRentals,
 
 function mapRentalRow(r: {
   id: string;
-  roomId: string;
+  carId: string;
   userId: string;
   startTime: Date;
   endTime: Date;
   status: string;
   user?: { id: string; name: string; email: string } | null;
-  room?: { id: string; name: string; capacity: number } | null;
+  car?: { id: string; name: string; capacity: number } | null;
 }) {
   return {
     id: r.id,
-    carId: r.roomId,
+    carId: r.carId,
     userId: r.userId,
     startTime: r.startTime,
     endTime: r.endTime,
     status: r.status,
     user: r.user ?? undefined,
-    car: r.room ? { id: r.room.id, name: r.room.name, seats: r.room.capacity } : undefined,
+    car: r.car ? { id: r.car.id, name: r.car.name, seats: r.car.capacity } : undefined,
   };
 }
 

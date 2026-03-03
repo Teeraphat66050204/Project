@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { carCatalog } from "@/data/cars";
+import { carCatalog, getCarFallbackImage } from "@/data/cars";
 import { useLanguage } from "@/components/providers/LanguageProvider";
+import { FallbackImage } from "@/components/ui/FallbackImage";
 
 const brandLogos = [
   { name: "HONDA", src: "https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/honda.svg" },
@@ -213,7 +214,12 @@ export default function HomePage() {
         <div className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {popularCars.map((car) => (
             <article key={car.id} className="card-premium p-4">
-              <img src={car.image} alt={car.name} className="h-44 w-full rounded-xl border border-white/10 object-cover" />
+              <FallbackImage
+                src={car.image}
+                fallbackSrc={getCarFallbackImage(car.id)}
+                alt={car.name}
+                className="h-44 w-full rounded-xl border border-white/10 object-cover"
+              />
               <p className="mt-3 text-xs uppercase tracking-wide text-white/60">{car.brand} - {car.type}</p>
               <h3 className="mt-1 text-3xl font-bold">{car.name}</h3>
               <p className="mt-2 text-xl font-bold text-[#F59E0B]">{car.pricePerDay.toLocaleString()} THB <span className="text-base font-medium text-white/70">{t.perDay}</span></p>

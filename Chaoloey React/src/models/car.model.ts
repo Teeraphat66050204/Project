@@ -6,12 +6,12 @@ function isCatalogCar(name: string) {
 }
 
 export async function listCars() {
-  const rows = await db.room.findMany({ orderBy: { name: "asc" } });
+  const rows = await db.car.findMany({ orderBy: { name: "asc" } });
   return rows.filter((row) => isCatalogCar(row.name));
 }
 
 export async function getCarById(id: string) {
-  const row = await db.room.findUnique({ where: { id } });
+  const row = await db.car.findUnique({ where: { id } });
   if (!row) return null;
   return isCatalogCar(row.name) ? row : null;
 }
@@ -28,10 +28,10 @@ export async function listAvailableCars(from: Date, to: Date) {
       startTime: { lt: to },
       endTime: { gt: from },
     },
-    select: { roomId: true },
+    select: { carId: true },
   });
 
-  const busy = new Set(overlaps.map((x) => x.roomId));
+  const busy = new Set(overlaps.map((x) => x.carId));
   return cars.filter((car) => !busy.has(car.id));
 }
 
@@ -43,7 +43,7 @@ export async function listCarAvailabilityDays(carId: string, from: Date, days: n
 
   const bookings = await db.booking.findMany({
     where: {
-      roomId: carId,
+      carId,
       status: "CONFIRMED",
       startTime: { lt: end },
       endTime: { gt: start },

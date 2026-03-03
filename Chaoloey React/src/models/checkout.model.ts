@@ -11,7 +11,7 @@ export async function upsertGuestUserByEmail(email: string, name?: string) {
 
 export async function createHold(input: {
   userId: string;
-  roomId: string;
+  carId: string;
   startTime: Date;
   endTime: Date;
   location: string;
@@ -20,13 +20,13 @@ export async function createHold(input: {
   return db.bookingHold.create({
     data: {
       userId: input.userId,
-      roomId: input.roomId,
+      carId: input.carId,
       startTime: input.startTime,
       endTime: input.endTime,
       expiresAt,
       location: input.location,
     },
-    include: { room: true },
+    include: { car: true },
   });
 }
 
@@ -34,7 +34,7 @@ export async function findHoldById(id: string) {
   return db.bookingHold.findUnique({
     where: { id },
     include: {
-      room: true,
+      car: true,
       user: true,
     },
   });
@@ -63,7 +63,7 @@ export async function createBookingAndConfirmation(input: {
 
   const overlap = await db.booking.findFirst({
     where: {
-      roomId: hold.roomId,
+      carId: hold.carId,
       status: "CONFIRMED",
       startTime: { lt: hold.endTime },
       endTime: { gt: hold.startTime },
@@ -75,12 +75,12 @@ export async function createBookingAndConfirmation(input: {
   const booking = await db.booking.create({
     data: {
       userId: hold.userId,
-      roomId: hold.roomId,
+      carId: hold.carId,
       startTime: hold.startTime,
       endTime: hold.endTime,
       status: "CONFIRMED",
     },
-    include: { room: true },
+    include: { car: true },
   });
 
   const receiptNo = `RCPT-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${Math.floor(Math.random() * 9000 + 1000)}`;
@@ -108,7 +108,7 @@ export async function findConfirmationByBookingId(bookingId: string) {
   const booking = await db.booking.findUnique({
     where: { id: bookingId },
     include: {
-      room: true,
+      car: true,
       user: true,
       confirmation: true,
     },

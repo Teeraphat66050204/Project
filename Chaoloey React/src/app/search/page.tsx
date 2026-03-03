@@ -1,8 +1,9 @@
 import { cookies } from "next/headers";
-import { findCatalogByName } from "@/data/cars";
-import { listAvailableCars } from "@/models/car.model";
+import { findCatalogByName, getCarFallbackImage } from "@/data/cars";
+import { listAvailableCars, listCars } from "@/models/car.model";
 import SearchPersistor from "@/components/search/SearchPersistor";
 import { LANGUAGE_COOKIE, normalizeLanguage } from "@/lib/i18n";
+import { FallbackImage } from "@/components/ui/FallbackImage";
 
 type SearchParams = {
   location?: string;
@@ -22,7 +23,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   const cookieStore = await cookies();
   const lang = normalizeLanguage(cookieStore.get(LANGUAGE_COOKIE)?.value);
   const t = lang === "th"
-    ? {
+      ? {
         title: "\u0e1c\u0e25\u0e01\u0e32\u0e23\u0e04\u0e49\u0e19\u0e2b\u0e32",
         location: "\u0e2a\u0e16\u0e32\u0e19\u0e17\u0e35\u0e48",
         selectCity: "\u0e40\u0e25\u0e37\u0e2d\u0e01\u0e40\u0e21\u0e37\u0e2d\u0e07",
@@ -49,10 +50,6 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
         rent: "\u0e40\u0e0a\u0e48\u0e32\u0e17\u0e31\u0e19\u0e17\u0e35",
         perDay: "/ \u0e27\u0e31\u0e19",
         seats: "\u0e17\u0e35\u0e48\u0e19\u0e31\u0e48\u0e07",
-        reqLocation: "\u0e15\u0e49\u0e2d\u0e07\u0e23\u0e30\u0e1a\u0e38\u0e2a\u0e16\u0e32\u0e19\u0e17\u0e35\u0e48",
-        reqDates: "\u0e15\u0e49\u0e2d\u0e07\u0e23\u0e30\u0e1a\u0e38\u0e27\u0e31\u0e19\u0e40\u0e27\u0e25\u0e32\u0e23\u0e31\u0e1a\u0e41\u0e25\u0e30\u0e04\u0e37\u0e19\u0e23\u0e16",
-        pickupPast: "\u0e27\u0e31\u0e19\u0e40\u0e27\u0e25\u0e32\u0e23\u0e31\u0e1a\u0e23\u0e16\u0e15\u0e49\u0e2d\u0e07\u0e44\u0e21\u0e48\u0e40\u0e1b\u0e47\u0e19\u0e40\u0e27\u0e25\u0e32\u0e43\u0e19\u0e2d\u0e14\u0e35\u0e15",
-        dropoffAfter: "\u0e27\u0e31\u0e19\u0e40\u0e27\u0e25\u0e32\u0e04\u0e37\u0e19\u0e23\u0e16\u0e15\u0e49\u0e2d\u0e07\u0e2b\u0e25\u0e31\u0e07\u0e27\u0e31\u0e19\u0e40\u0e27\u0e25\u0e32\u0e23\u0e31\u0e1a\u0e23\u0e16",
       }
     : {
         title: "Search results",
@@ -81,10 +78,6 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
         rent: "Rent now",
         perDay: "/ day",
         seats: "seats",
-        reqLocation: "Location is required.",
-        reqDates: "Pick-up and drop-off date/time are required.",
-        pickupPast: "Pick-up cannot be in the past.",
-        dropoffAfter: "Drop-off must be later than pick-up.",
       };
 
   const params = await searchParams;
@@ -99,14 +92,14 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   const pickupDate = pickup ? new Date(pickup) : null;
   const dropoffDate = dropoff ? new Date(dropoff) : null;
 
-  let baseRows: Awaited<ReturnType<typeof listAvailableCars>> = [];
-  const errors: string[] = [];
-  if (!location) errors.push(t.reqLocation);
-  if (!pickupDate || !dropoffDate) errors.push(t.reqDates);
-  if (pickupDate && pickupDate < new Date()) errors.push(t.pickupPast);
-  if (pickupDate && dropoffDate && dropoffDate <= pickupDate) errors.push(t.dropoffAfter);
-
-  if (!errors.length && pickupDate && dropoffDate) {
+  let baseRows: Awaited<ReturnType<typeof listCars>> = await listCars();
+  if (
+    pickupDate &&
+    dropoffDate &&
+    !Number.isNaN(pickupDate.getTime()) &&
+    !Number.isNaN(dropoffDate.getTime()) &&
+    dropoffDate > pickupDate
+  ) {
     baseRows = await listAvailableCars(pickupDate, dropoffDate);
   }
 
@@ -115,7 +108,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
       const meta = findCatalogByName(row.name);
       if (!meta) return null;
       return {
-        roomId: row.id,
+        carId: row.id,
         ...meta,
       };
     })
@@ -155,8 +148,8 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
       <section className="card-premium p-5">
         <form id="search-filters-form" className="grid gap-4 md:grid-cols-5" method="GET" action="/search">
           <SearchPersistor />
-          <input type="hidden" name="pickup" value={pickup} />
-          <input type="hidden" name="dropoff" value={dropoff} />
+          <input type="hidden" name="pickup" value="" />
+          <input type="hidden" name="dropoff" value="" />
 
           <div>
             <label htmlFor="location" className="mb-2 block text-sm font-semibold">{t.location}</label>
@@ -215,13 +208,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
         </form>
       </section>
 
-      {errors.length > 0 ? (
-        <section className="mt-5 space-y-2">
-          {errors.map((msg) => (
-            <p key={msg} className="status-banner">{msg}</p>
-          ))}
-        </section>
-      ) : filtered.length === 0 ? (
+      {filtered.length === 0 ? (
         <section className="card-premium mt-5 p-8 text-center">
           <span className="badge border-red-400/70 text-red-400">{t.noCars}</span>
           <h2 className="mt-4 text-2xl font-black">{t.noCarsTitle}</h2>
@@ -236,11 +223,16 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
               if (pickup) detailParams.set("pickup", pickup);
               if (dropoff) detailParams.set("dropoff", dropoff);
               if (location) detailParams.set("location", location);
-              const href = `/car/${car.roomId}${detailParams.toString() ? `?${detailParams.toString()}` : ""}`;
+              const href = `/car/${car.carId}${detailParams.toString() ? `?${detailParams.toString()}` : ""}`;
 
               return (
-                <article key={car.roomId} className="card-premium p-4">
-                  <img src={car.image} alt={car.name} className="h-44 w-full rounded-xl border border-white/10 object-cover" />
+                <article key={car.carId} className="card-premium p-4">
+                  <FallbackImage
+                    src={car.image}
+                    fallbackSrc={getCarFallbackImage(car.id)}
+                    alt={car.name}
+                    className="h-44 w-full rounded-xl border border-white/10 object-cover"
+                  />
                   <p className="mt-3 text-xs uppercase tracking-wide text-white/60">{car.brand} - {car.type}</p>
                   <h2 className="mt-1 text-3xl font-bold">{car.name}</h2>
                   <p className="mt-2 text-xl font-bold text-[#F59E0B]">{car.pricePerDay.toLocaleString()} THB <span className="text-base font-medium text-white/70">{t.perDay}</span></p>

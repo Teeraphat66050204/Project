@@ -24,7 +24,7 @@ export async function createCheckoutHold(input: {
 
   const hold = await createHold({
     userId,
-    roomId: input.carId,
+    carId: input.carId,
     startTime: start,
     endTime: end,
     location: input.location,
@@ -33,7 +33,7 @@ export async function createCheckoutHold(input: {
   return {
     id: hold.id,
     expiresAt: hold.expiresAt,
-    car: { id: hold.room.id, name: hold.room.name, seats: hold.room.capacity, pricePerDay: getPricePerDay(hold.room.name, hold.room.capacity) },
+    car: { id: hold.car.id, name: hold.car.name, seats: hold.car.capacity, pricePerDay: getPricePerDay(hold.car.name, hold.car.capacity) },
     pickup: hold.startTime,
     dropoff: hold.endTime,
     location: hold.location,
@@ -48,7 +48,7 @@ export async function getHoldSummary(id: string) {
   return {
     id: hold.id,
     expiresAt: hold.expiresAt,
-    car: { id: hold.room.id, name: hold.room.name, seats: hold.room.capacity, pricePerDay: getPricePerDay(hold.room.name, hold.room.capacity) },
+    car: { id: hold.car.id, name: hold.car.name, seats: hold.car.capacity, pricePerDay: getPricePerDay(hold.car.name, hold.car.capacity) },
     pickup: hold.startTime,
     dropoff: hold.endTime,
     location: hold.location,
@@ -69,7 +69,7 @@ export async function completeCheckoutPayment(input: {
   if (hold.expiresAt.getTime() <= Date.now()) throw new Error("HOLD_EXPIRED");
 
   const pricing = calculatePricing({
-    pricePerDay: getPricePerDay(hold.room.name, hold.room.capacity),
+    pricePerDay: getPricePerDay(hold.car.name, hold.car.capacity),
     pickupISO: hold.startTime.toISOString(),
     dropoffISO: hold.endTime.toISOString(),
     insurance: input.addons.insurance,
@@ -82,7 +82,7 @@ export async function completeCheckoutPayment(input: {
     amount: chargeAmount,
     currency: "THB",
     method: input.paymentMethod,
-    description: `Car rental payment for ${hold.room.name}`,
+    description: `Car rental payment for ${hold.car.name}`,
   });
 
   const result = await createBookingAndConfirmation({
@@ -101,7 +101,7 @@ export async function completeCheckoutPayment(input: {
     subject: `Booking Confirmation ${result.confirmation.receiptNo}`,
     bookingId: result.booking.id,
     receiptNo: result.confirmation.receiptNo,
-    carName: hold.room.name,
+    carName: hold.car.name,
     pickupAt: hold.startTime.toISOString(),
     returnAt: hold.endTime.toISOString(),
     location: hold.location || "",
@@ -112,13 +112,13 @@ export async function completeCheckoutPayment(input: {
     booking: {
       id: result.booking.id,
       status: result.booking.status,
-      carId: result.booking.roomId,
+      carId: result.booking.carId,
       startTime: result.booking.startTime,
       endTime: result.booking.endTime,
       car: {
-        id: hold.room.id,
-        name: hold.room.name,
-        seats: hold.room.capacity,
+        id: hold.car.id,
+        name: hold.car.name,
+        seats: hold.car.capacity,
       },
     },
     payment,
@@ -145,7 +145,7 @@ export async function getCheckoutConfirmation(bookingId: string) {
       status: row.status,
       startTime: row.startTime,
       endTime: row.endTime,
-      car: { id: row.room.id, name: row.room.name, seats: row.room.capacity, pricePerDay: getPricePerDay(row.room.name, row.room.capacity) },
+      car: { id: row.car.id, name: row.car.name, seats: row.car.capacity, pricePerDay: getPricePerDay(row.car.name, row.car.capacity) },
       customer: { id: row.user.id, name: row.user.name, email: row.user.email },
     },
     confirmation: {

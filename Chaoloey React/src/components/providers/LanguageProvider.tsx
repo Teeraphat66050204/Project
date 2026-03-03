@@ -11,6 +11,13 @@ type LanguageContextValue = {
 
 const LanguageContext = createContext<LanguageContextValue | null>(null);
 
+function persistLanguage(lang: Language) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(LANGUAGE_COOKIE, lang);
+  document.documentElement.lang = lang;
+  document.cookie = `${LANGUAGE_COOKIE}=${lang}; path=/; max-age=31536000; samesite=lax`;
+}
+
 export function LanguageProvider({ initialLang, children }: { initialLang: Language; children: ReactNode }) {
   const [lang, setLangState] = useState<Language>(() => {
     if (typeof window === "undefined") return initialLang || DEFAULT_LANGUAGE;
@@ -19,17 +26,20 @@ export function LanguageProvider({ initialLang, children }: { initialLang: Langu
   });
 
   const setLang = (next: Language) => {
+    persistLanguage(next);
     setLangState(next);
   };
 
   const toggleLang = () => {
-    setLangState((prev) => (prev === "en" ? "th" : "en"));
+    setLangState((prev) => {
+      const next = prev === "en" ? "th" : "en";
+      persistLanguage(next);
+      return next;
+    });
   };
 
   useEffect(() => {
-    window.localStorage.setItem(LANGUAGE_COOKIE, lang);
-    document.documentElement.lang = lang;
-    document.cookie = `${LANGUAGE_COOKIE}=${lang}; path=/; max-age=31536000; samesite=lax`;
+    persistLanguage(lang);
   }, [lang]);
 
   const value = useMemo(() => ({ lang, setLang, toggleLang }), [lang]);

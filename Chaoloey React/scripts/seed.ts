@@ -33,15 +33,15 @@ async function main() {
   const catalogNameSet = new Set(carCatalog.map((c) => c.name.toLowerCase()));
 
   for (const car of carCatalog) {
-    const existing = await prisma.room.findFirst({ where: { name: car.name } });
+    const existing = await prisma.car.findFirst({ where: { name: car.name } });
     if (!existing) {
-      await prisma.room.create({ data: { name: car.name, capacity: car.seats } });
+      await prisma.car.create({ data: { name: car.name, capacity: car.seats } });
     } else {
-      await prisma.room.update({ where: { id: existing.id }, data: { capacity: car.seats } });
+      await prisma.car.update({ where: { id: existing.id }, data: { capacity: car.seats } });
     }
   }
 
-  const candidates = await prisma.room.findMany({
+  const candidates = await prisma.car.findMany({
     where: {
       NOT: {
         name: {
@@ -57,10 +57,10 @@ async function main() {
 
   for (const row of candidates) {
     if (catalogNameSet.has(row.name.toLowerCase())) continue;
-    const bookingCount = await prisma.booking.count({ where: { roomId: row.id } });
-    const holdCount = await prisma.bookingHold.count({ where: { roomId: row.id } });
+    const bookingCount = await prisma.booking.count({ where: { carId: row.id } });
+    const holdCount = await prisma.bookingHold.count({ where: { carId: row.id } });
     if (bookingCount === 0 && holdCount === 0) {
-      await prisma.room.delete({ where: { id: row.id } });
+      await prisma.car.delete({ where: { id: row.id } });
     }
   }
 
